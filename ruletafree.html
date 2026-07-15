@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>La Ruleta Aleatoria</title>
+    <!-- Tailwind CSS para diseño moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+        }
+        .wheel-shadow {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        /* Clase especial para pantalla completa limpia y centrada */
+        .fullscreen-active {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+            z-index: 40 !important;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%) !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 flex items-center justify-center p-4 sm:p-6">
+
+    <div class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        
+        <!-- COLUMNA IZQUIERDA: La Ruleta -->
+        <div class="lg:col-span-7 flex flex-col items-center justify-center relative">
+            <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-rose-500 mb-2 tracking-wide text-center">
+                La Ruleta Aleatoria
+            </h1>
+            <p class="text-sm sm:text-base text-slate-400 mb-8 text-center font-medium">
+                ¡Gira la ruleta y obtén tus ganadores al azar!
+            </p>
+            
+            <!-- Contenedor de la Ruleta -->
+            <div id="wheelContainer" class="relative w-full max-w-[460px] aspect-square flex items-center justify-center wheel-shadow rounded-full p-2 bg-slate-800/50 border border-slate-700/50 transition-all duration-500">
+                
+                <!-- Envoltura interna que agrupa la ruleta, la flecha y el botón central (Evita que se separen en pantalla completa) -->
+                <div class="relative w-[440px] h-[440px] flex items-center justify-center">
+                    
+                    <!-- Flecha indicadora superior (Siempre pegada al borde superior de la ruleta) -->
+                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-20 drop-shadow-lg">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 21L3 9H21L12 21Z" fill="#ef4444" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+
+                    <!-- Canvas de la ruleta -->
+                    <canvas id="wheel" width="500" height="500" style="width: 440px; height: 440px;" class="rounded-full transition-all duration-500"></canvas>
+                    
+                    <!-- Botón de Giro en el Centro -->
+                    <button id="spinBtn" onclick="spin()" class="absolute w-20 h-20 bg-gradient-to-br from-amber-400 to-rose-500 hover:scale-105 active:scale-95 transition-all rounded-full z-10 flex flex-col items-center justify-center shadow-xl border-4 border-slate-900 group">
+                        <span class="text-xs font-bold text-slate-950 uppercase tracking-widest group-hover:text-white transition-colors">Girar</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: Opciones y Gestión -->
+        <div class="lg:col-span-5 bg-slate-800/60 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-2xl flex flex-col gap-6">
+            
+            <div>
+                <h2 class="text-lg font-semibold mb-3 flex items-center gap-2 text-amber-400">
+                    <i class="fa-solid fa-user-plus"></i> Agregar Participante
+                </h2>
+                <!-- Input rápido para agregar de uno en uno -->
+                <div class="flex gap-2 mb-6">
+                    <input id="newName" type="text" placeholder="Escribe un nombre aquí..." class="flex-1 bg-slate-950/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-white placeholder-slate-500" onkeydown="if(event.key === 'Enter') addParticipant()">
+                    <button onclick="addParticipant()" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-90 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition text-sm flex items-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-plus"></i> Agregar
+                    </button>
+                </div>
+
+                <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-users text-slate-300"></i> Lista de Participantes
+                </h2>
+                
+                <!-- Presets Rápidos -->
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button onclick="loadPreset(['SÍ', 'NO'])" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition">SÍ / NO</button>
+                    <button onclick="loadPreset(['1', '2', '3', '4', '5', '6'])" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition">Dados (1-6)</button>
+                    <button onclick="loadPreset(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'])" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg border border-slate-600 transition">Días</button>
+                    <button onclick="clearList()" class="text-xs bg-rose-900/50 hover:bg-rose-900 text-rose-200 px-3 py-1.5 rounded-lg border border-rose-700 transition">Limpiar</button>
+                </div>
+
+                <textarea id="names" placeholder="Escribe un nombre por línea..." class="w-full h-44 bg-slate-950/80 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition resize-none placeholder-slate-500 font-mono text-white"></textarea>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="loadNames()" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all border border-slate-600 flex items-center justify-center gap-2 text-sm shadow-md">
+                    <i class="fa-solid fa-rotate"></i> Actualizar Lista
+                </button>
+                <button onclick="spin()" class="bg-gradient-to-r from-amber-500 to-rose-500 hover:opacity-95 text-slate-950 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-rose-500/20">
+                    <i class="fa-solid fa-play"></i> ¡Iniciar!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE GANADOR (Estilo Celebración con Confeti) -->
+    <div id="winnerModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <!-- Canvas para el Confeti -->
+        <canvas id="confettiCanvas" class="absolute inset-0 pointer-events-none z-10"></canvas>
+        
+        <div class="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full mx-4 text-center shadow-2xl relative z-20 scale-90 transition-transform duration-300" id="modalCard">
+            <div class="w-20 h-20 bg-amber-500/10 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/30 animate-bounce">
+                <i class="fa-solid fa-trophy text-4xl"></i>
+            </div>
+            <p class="text-sm uppercase tracking-widest text-slate-400 font-semibold mb-1">¡Tenemos un ganador!</p>
+            <h2 id="winnerName" class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-rose-400 py-2 break-words"></h2>
+            
+            <button onclick="closeModal()" class="mt-6 w-full bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-6 rounded-xl transition">
+                Aceptar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ===============================================================
+        // GANADOR MANUAL (SOLO MODIFICAR DESDE ESTE CÓDIGO)
+        // Escribe exactamente el nombre del participante para forzar el ganador.
+        // Deja "" (vacío) para que el sorteo sea 100% aleatorio.
+        // ===============================================================
+        let ganadorManual = "HILDA CCACCYA";
+
+        // Configuración inicial de la lista
+        let participants = ["Sofía", "Carlos", "Diana", "Mateo", "Andrea", "Lucas", "Alex"];
+        let angle = 0;
+        let spinning = false;
+
+        // Cargar valores iniciales en el textarea
+        document.getElementById("names").value = participants.join("\n");
+
+        const c = document.getElementById("wheel");
+        const ctx = c.getContext("2d");
+        const wheelContainer = document.getElementById("wheelContainer");
+
+        // Adaptar resolución de pantalla (Alta definición / No borroso)
+        function setupCanvas() {
+            const rect = c.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            c.width = rect.width * dpr;
+            c.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        // Paleta de colores vibrantes
+        const colors = [
+            "#FF4B4B", "#FF8F3D", "#FFD043", "#1DD1A1", 
+            "#10AC84", "#0ABDE3", "#2E86DE", "#54A0FF", 
+            "#5f27cd", "#341f97", "#ff9ff3", "#f368e0"
+        ];
+
+        // --- SISTEMA DE AUDIO (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTickSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.06);
+            
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.06);
+        }
+
+        function playWinnerSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const notes = [261.63, 329.63, 392.00, 523.25];
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.12);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + index * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + index * 0.12 + 0.3);
+                osc.start(audioCtx.currentTime + index * 0.12);
+                osc.stop(audioCtx.currentTime + index * 0.12 + 0.3);
+            });
+        }
+
+        // --- DIBUJAR RULETA ---
+        function draw() {
+            const w = c.width / (window.devicePixelRatio || 1);
+            const h = c.height / (window.devicePixelRatio || 1);
+            const centerX = w / 2;
+            const centerY = h / 2;
+            const radius = Math.min(centerX, centerY) - 10;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (!participants.length) {
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 16px Poppins";
+                ctx.textAlign = "center";
+                ctx.fillText("Agrega opciones para comenzar", centerX, centerY);
+                return;
+            }
+
+            const step = 2 * Math.PI / participants.length;
+
+            participants.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle + i * step, angle + (i + 1) * step);
+                ctx.closePath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + i * step + step / 2);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 14px Poppins";
+                ctx.textAlign = "right";
+                
+                let text = p;
+                if (text.length > 15) text = text.substring(0, 13) + "..";
+                
+                ctx.fillText(text, radius - 20, 5);
+                ctx.restore();
+            });
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+
+        // --- MANEJO DE PARTICIPANTES ---
+        function addParticipant() {
+            const input = document.getElementById("newName");
+            const name = input.value.trim();
+            if (name !== "") {
+                participants.push(name);
+                document.getElementById("names").value = participants.join("\n");
+                input.value = "";
+                draw();
+            }
+        }
+
+        function loadNames() {
+            participants = document.getElementById("names").value
+                .split("\n")
+                .map(x => x.trim())
+                .filter(Boolean);
+            draw();
+        }
+
+        // Carga presets rápidos
+        function loadPreset(arr) {
+            participants = arr;
+            document.getElementById("names").value = arr.join("\n");
+            draw();
+        }
+
+        function clearList() {
+            participants = [];
+            document.getElementById("names").value = "";
+            draw();
+        }
+
+        // --- ANIMACIÓN DE GIRO CON PANTALLA COMPLETA ---
+        function spin() {
+            if (spinning || participants.length === 0) return;
+            spinning = true;
+
+            let winnerIndex;
+
+            if (ganadorManual.trim() !== "") {
+                winnerIndex = participants.findIndex(p => p.trim().toUpperCase() === ganadorManual.trim().toUpperCase());
+                if (winnerIndex === -1) {
+                    winnerIndex = Math.floor(Math.random() * participants.length);
+                }
+            } else {
+                winnerIndex = Math.floor(Math.random() * participants.length);
+            }
+
+            const step = 2 * Math.PI / participants.length;
+            const targetSegmentCenter = winnerIndex * step + step / 2;
+
+            const startAngle = angle;
+            const totalRotations = 10; 
+            const targetRotation = (1.5 * Math.PI - targetSegmentCenter - startAngle) % (Math.PI * 2) + (totalRotations * Math.PI * 2);
+
+            const duration = 5000; 
+            const startTime = performance.now();
+            
+            let lastSegmentIdx = -1;
+
+            // Activar pantalla completa limpia
+            wheelContainer.classList.add("fullscreen-active");
+
+            function animate(now) {
+                const progress = Math.min((now - startTime) / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3.5);
+                
+                angle = startAngle + targetRotation * easeOut;
+                draw();
+
+                // Detección de ticks de audio
+                const currentNormalAngle = (angle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                const relativeArrowPos = (1.5 * Math.PI - currentNormalAngle + Math.PI * 2) % (Math.PI * 2);
+                const currentSegmentIdx = Math.floor(relativeArrowPos / step);
+
+                if (currentSegmentIdx !== lastSegmentIdx) {
+                    playTickSound();
+                    lastSegmentIdx = currentSegmentIdx;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    spinning = false;
+                    
+                    // Desactivar pantalla completa antes de anunciar ganador
+                    wheelContainer.classList.remove("fullscreen-active");
+                    
+                    const winner = participants[winnerIndex];
+                    showWinner(winner);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // --- MODAL DE GANADOR Y CONFETI ---
+        const modal = document.getElementById("winnerModal");
+        const modalCard = document.getElementById("modalCard");
+        const confCanvas = document.getElementById("confettiCanvas");
+        const confCtx = confCanvas.getContext("2d");
+        let confetti = [];
+        let animationFrameId;
+
+        function showWinner(winner) {
+            document.getElementById("winnerName").innerText = winner;
+            
+            modal.classList.remove("opacity-0", "pointer-events-none");
+            modalCard.classList.remove("scale-90");
+            modalCard.classList.add("scale-100");
+
+            playWinnerSound();
+            initConfetti();
+        }
+
+        function closeModal() {
+            modal.classList.add("opacity-0", "pointer-events-none");
+            modalCard.classList.remove("scale-100");
+            modalCard.classList.add("scale-90");
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        // --- SISTEMA DE CONFETI ---
+        function initConfetti() {
+            confCanvas.width = window.innerWidth;
+            confCanvas.height = window.innerHeight;
+            confetti = [];
+            
+            for (let i = 0; i < 150; i++) {
+                confetti.push({
+                    x: Math.random() * confCanvas.width,
+                    y: Math.random() * confCanvas.height - confCanvas.height,
+                    r: Math.random() * 6 + 4,
+                    d: Math.random() * confCanvas.height,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    tilt: Math.random() * 10 - 5,
+                    tiltAngleIncremental: Math.random() * 0.07 + 0.02,
+                    tiltAngle: 0
+                });
+            }
+            animateConfetti();
+        }
+
+        // Animación de caída de confeti
+        function animateConfetti() {
+            confCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+            
+            confetti.forEach((p, idx) => {
+                p.tiltAngle += p.tiltAngleIncremental;
+                p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+                p.x += Math.sin(p.tiltAngle);
+                p.tilt = Math.sin(p.tiltAngle - idx / 3) * 15;
+
+                confCtx.beginPath();
+                confCtx.lineWidth = p.r;
+                confCtx.strokeStyle = p.color;
+                confCtx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+                confCtx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+                confCtx.stroke();
+
+                if (p.y > confCanvas.height) {
+                    confetti[idx] = {
+                        x: Math.random() * confCanvas.width,
+                        y: -20,
+                        r: p.r,
+                        d: p.d,
+                        color: p.color,
+                        tilt: p.tilt,
+                        tiltAngleIncremental: p.tiltAngleIncremental,
+                        tiltAngle: p.tiltAngle
+                    };
+                }
+            });
+
+            animationFrameId = requestAnimationFrame(animateConfetti);
+        }
+
+        // Eventos de tamaño y render
+        window.addEventListener('resize', () => {
+            setupCanvas();
+            draw();
+            confCanvas.width = window.innerWidth;
+            confCanvas.height = window.innerHeight;
+        });
+
+        // Configurar resoluciones iniciales
+        setupCanvas();
+        draw();
+    </script>
+</body>
+</html>
